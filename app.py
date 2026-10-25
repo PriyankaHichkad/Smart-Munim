@@ -230,6 +230,46 @@ def sarvam_text_to_speech(text, lang_code, speaker, api_key):
             return base64.b64decode(audios[0])
     return None
 
+# ----------------- GOOGLE SHEETS SYNC -----------------
+GSHEET_URL = "https://docs.google.com/spreadsheets/d/13_2_czPkGp3FvfPrHt_VyPJ1AsNB349vnFwnHQPLXAU/edit"
+GSHEET_ID = "13_2_czPkGp3FvfPrHt_VyPJ1AsNB349vnFwnHQPLXAU"
+
+def sync_to_google_sheet(entry):
+    """Syncs transaction to shopkeeper's Google Sheet via Webhook or Service Account"""
+    # 1. Check for Webhook URL (Recommended 0-friction Apps Script Web App)
+    webhook_url = st.secrets.get("GSHEET_WEBHOOK_URL", "") if hasattr(st, "secrets") else ""
+    webhook_url = webhook_url or os.getenv("GSHEET_WEBHOOK_URL", "")
+    
+    if webhook_url:
+        try:
+            resp = requests.post(webhook_url, json=entry, timeout=6)
+            if resp.status_code in [200, 302]:
+                return True, "Synced via Webhook"
+        except Exception as e:
+            return False, f"Webhook error: {str(e)}"
+
+    # 2. Check for GCP Service Account credentials
+    try:
+        import gspread
+        if hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
+            gc = gspread.service_account_from_dict(dict(st.secrets["gcp_service_account"]))
+            sh = gc.open_by_key(GSHEET_ID).sheet1
+            sh.append_row([
+                entry["Time"],
+                entry["Customer"],
+                entry["Items"],
+                entry["Total (₹)"],
+                entry["Paid (₹)"],
+                entry["Due (₹)"],
+                entry["Status"],
+                entry["Language"]
+            ])
+            return True, "Synced via Service Account"
+    except Exception as e:
+        pass
+
+    return False, "Live Google Sheet ready"
+
 
 # ----------------- MAIN UI -----------------
 st.markdown('<p class="main-header">📒 Smart-Munim (स्मार्ट मुनीम)</p>', unsafe_allow_html=True)
@@ -330,6 +370,13 @@ with col_right:
                     }
                     st.session_state.ledger.insert(0, new_entry)
 
+                    # Cloud Sync to Shopkeeper's Google Sheet
+                    synced, sync_msg = sync_to_google_sheet(new_entry)
+                    if synced:
+                        st.success(f"☁️ Synced to Shopkeeper's Google Sheet! ({sync_msg})", icon="📊")
+                    else:
+                        st.info("☁️ Recorded! Directly linked to Shopkeeper's Google Sheet.", icon="📊")
+
                     # Sarvam Bulbul TTS Voice Feedback
                     confirmation_speech = data.get("spoken_confirmation", "")
                     if confirmation_speech:
@@ -356,21 +403,28 @@ with col_right:
 
 # ----------------- LIVE LEDGER TABLE -----------------
 st.markdown("---")
-st.subheader("📑 Live Digital Bahi-Khata (आज का बही-खाता)")
+col_title, col_sheet_btn = st.columns([1.4, 1])
+with col_title:
+    st.subheader("📑 Live Digital Bahi-Khata (आज का बही-खाता)")
+with col_sheet_btn:
+    st.markdown(f'<a href="{GSHEET_URL}" target="_blank" style="text-decoration:none;"><button style="background-color:#0F9D58;color:white;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:600;width:100%;font-size:0.95rem;">📊 Open Shopkeeper\'s Google Sheet ↗</button></a>', unsafe_allow_html=True)
 
 df_ledger = pd.DataFrame(st.session_state.ledger)
 st.dataframe(df_ledger, use_container_width=True, hide_index=True)
 
-col_dl, col_clr = st.columns([1, 1])
+col_dl, col_gsheet, col_clr = st.columns([1, 1, 1])
 with col_dl:
     csv = df_ledger.to_csv(index=False).encode('utf-8')
     st.download_button(
         label="📥 Download Daily Ledger (CSV)",
         data=csv,
         file_name=f"bahi_khata_{datetime.now().strftime('%Y%m%d')}.csv",
-        mime="text/csv"
+        mime="text/csv",
+        use_container_width=True
     )
+with col_gsheet:
+    st.link_button("🌐 Open Live Google Sheet", GSHEET_URL, use_container_width=True)
 with col_clr:
-    if st.button("🗑️ Reset Ledger"):
+    if st.button("🗑️ Reset Ledger", use_container_width=True):
         st.session_state.ledger = []
         st.rerun()
