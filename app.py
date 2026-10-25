@@ -55,22 +55,24 @@ st.markdown("""
 if "ledger" not in st.session_state:
     st.session_state.ledger = [
         {
+            "Date": datetime.now().strftime("%d-%m-%Y"),
             "Time": "10:15 AM",
             "Customer": "Ramesh Gupta",
             "Items": "2kg Sugar, 1L Mustard Oil",
-            "Total (₹)": 240,
-            "Paid (₹)": 100,
-            "Due (₹)": 140,
+            "Total (Rs)": 240,
+            "Paid (Rs)": 100,
+            "Due (Rs)": 140,
             "Status": "Udhaar (उधार)",
             "Language": "Hindi"
         },
         {
+            "Date": datetime.now().strftime("%d-%m-%Y"),
             "Time": "11:30 AM",
             "Customer": "Priya Sharma",
             "Items": "Wheat Flour 5kg, Tea 250g",
-            "Total (₹)": 310,
-            "Paid (₹)": 310,
-            "Due (₹)": 0,
+            "Total (Rs)": 310,
+            "Paid (Rs)": 310,
+            "Due (Rs)": 0,
             "Status": "Paid (नकद)",
             "Language": "Hinglish"
         }
@@ -235,11 +237,42 @@ GSHEET_URL = "https://docs.google.com/spreadsheets/d/13_2_czPkGp3FvfPrHt_VyPJ1As
 GSHEET_ID = "13_2_czPkGp3FvfPrHt_VyPJ1AsNB349vnFwnHQPLXAU"
 
 def sync_to_google_sheet(entry):
-    """Syncs transaction to shopkeeper's Google Sheet via Webhook or Service Account"""
-    # 1. Check for Webhook URL (Recommended 0-friction Apps Script Web App)
+    """Syncs transaction to shopkeeper's Google Sheet via Service Account or Webhook"""
+    row_values = [
+        entry.get("Date", datetime.now().strftime("%d-%m-%Y")),
+        entry.get("Time", datetime.now().strftime("%I:%M %p")),
+        entry.get("Customer", ""),
+        entry.get("Items", ""),
+        entry.get("Total (Rs)", 0),
+        entry.get("Paid (Rs)", 0),
+        entry.get("Due (Rs)", 0),
+        entry.get("Status", ""),
+        entry.get("Language", "")
+    ]
+
+    # 1. Check for Service Account JSON File or Streamlit Secrets
+    try:
+        import gspread
+        gc = None
+        creds_file = os.getenv("GOOGLE_CREDENTIALS_FILE", "service_account.json")
+        if not os.path.isabs(creds_file):
+            creds_file = os.path.join(os.path.dirname(__file__), creds_file)
+
+        if os.path.exists(creds_file):
+            gc = gspread.service_account(filename=creds_file)
+        elif hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
+            gc = gspread.service_account_from_dict(dict(st.secrets["gcp_service_account"]))
+
+        if gc:
+            sh = gc.open_by_key(GSHEET_ID).sheet1
+            sh.append_row(row_values)
+            return True, "Synced via Google Credentials"
+    except Exception as e:
+        pass
+
+    # 2. Check for Webhook URL (Apps Script Web App)
     webhook_url = st.secrets.get("GSHEET_WEBHOOK_URL", "") if hasattr(st, "secrets") else ""
     webhook_url = webhook_url or os.getenv("GSHEET_WEBHOOK_URL", "")
-    
     if webhook_url:
         try:
             resp = requests.post(webhook_url, json=entry, timeout=6)
@@ -248,27 +281,7 @@ def sync_to_google_sheet(entry):
         except Exception as e:
             return False, f"Webhook error: {str(e)}"
 
-    # 2. Check for GCP Service Account credentials
-    try:
-        import gspread
-        if hasattr(st, "secrets") and "gcp_service_account" in st.secrets:
-            gc = gspread.service_account_from_dict(dict(st.secrets["gcp_service_account"]))
-            sh = gc.open_by_key(GSHEET_ID).sheet1
-            sh.append_row([
-                entry["Time"],
-                entry["Customer"],
-                entry["Items"],
-                entry["Total (₹)"],
-                entry["Paid (₹)"],
-                entry["Due (₹)"],
-                entry["Status"],
-                entry["Language"]
-            ])
-            return True, "Synced via Service Account"
-    except Exception as e:
-        pass
-
-    return False, "Live Google Sheet ready"
+    return False, "Ready (Add credentials to auto-sync)"
 
 
 # ----------------- MAIN UI -----------------
@@ -276,9 +289,9 @@ st.markdown('<p class="main-header">📒 Smart-Munim (स्मार्ट म�
 st.markdown('<p class="sub-header">Hands-free Vernacular Voice Ledger for Bharat\'s Kirana Stores • Powered by Sarvam AI</p>', unsafe_allow_html=True)
 
 # Top KPI Metrics Bar
-total_sales = sum(item["Total (₹)"] for item in st.session_state.ledger)
-total_cash = sum(item["Paid (₹)"] for item in st.session_state.ledger)
-total_udhaar = sum(item["Due (₹)"] for item in st.session_state.ledger)
+total_sales = sum(item.get("Total (Rs)", item.get("Total (₹)", 0)) for item in st.session_state.ledger)
+total_cash = sum(item.get("Paid (Rs)", item.get("Paid (₹)", 0)) for item in st.session_state.ledger)
+total_udhaar = sum(item.get("Due (Rs)", item.get("Due (₹)", 0)) for item in st.session_state.ledger)
 
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 kpi1.metric("💰 Total Sales Today", f"₹{total_sales}")
@@ -359,12 +372,13 @@ with col_right:
 
                     # Add to session ledger
                     new_entry = {
+                        "Date": datetime.now().strftime("%d-%m-%Y"),
                         "Time": datetime.now().strftime("%I:%M %p"),
                         "Customer": data.get("customer_name"),
                         "Items": data.get("items"),
-                        "Total (₹)": data.get("total_amount", 0),
-                        "Paid (₹)": data.get("paid_amount", 0),
-                        "Due (₹)": data.get("due_amount", 0),
+                        "Total (Rs)": data.get("total_amount", 0),
+                        "Paid (Rs)": data.get("paid_amount", 0),
+                        "Due (Rs)": data.get("due_amount", 0),
                         "Status": data.get("transaction_type"),
                         "Language": selected_lang_name.split()[0]
                     }
