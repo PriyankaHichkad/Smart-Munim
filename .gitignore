@@ -13,3 +13,8 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
+
+# Secrets & Credentials
+*.json
+!package*.json
+.env
