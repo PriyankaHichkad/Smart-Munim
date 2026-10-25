@@ -112,7 +112,7 @@ with st.sidebar:
     selected_lang_name = st.selectbox("Preferred Indic Language", list(language_options.keys()), index=0)
     selected_lang_code = language_options[selected_lang_name]
 
-    speaker_options = ["meera", "pavithra", "maitri", "arvind", "amol", "amartya"]
+    speaker_options = ["aditya", "priya", "ritu", "rohan", "kavya", "rahul", "pooja", "anand"]
     selected_speaker = st.selectbox("Bulbul Voice Speaker", speaker_options, index=0)
 
     st.markdown("---")
@@ -222,7 +222,7 @@ def sarvam_text_to_speech(text, lang_code, speaker, api_key):
         "loudness": 1.5,
         "speech_sample_rate": 8000,
         "enable_preprocessing": True,
-        "model": "bulbul:v1"
+        "model": "bulbul:v3"
     }
     
     response = requests.post(url, headers=headers, json=payload, timeout=25)
@@ -394,7 +394,7 @@ with col_right:
                     # Sarvam Bulbul TTS Voice Feedback
                     confirmation_speech = data.get("spoken_confirmation", "")
                     if confirmation_speech:
-                        st.markdown("#### 🔊 Munimji Voice Confirmation (Bulbul v1):")
+                        st.markdown("#### 🔊 Munimji Voice Confirmation (Bulbul v3):")
                         st.success(f"🗣️ *\"{confirmation_speech}\"*")
                         with st.spinner("Generating Indic speech audio..."):
                             try:
