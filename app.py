@@ -314,121 +314,119 @@ if st.button("📢 🎙️ Munimji, Aaj Ka Hisaab Sunao (Daily Voice Briefing)",
 
 st.markdown("---")
 
-# Two-column layout: Input (Voice/Text) vs Output/Ledger
-col_left, col_right = st.columns([1.1, 1.3], gap="large")
+# ----------------- VOICE & TRANSACTION ENTRY -----------------
+st.subheader("🎙️ Voice Entry (बोल कर लिखें)")
+st.caption("Speak your transaction, upload an audio clip, or pick a sample preset:")
 
-with col_left:
-    st.subheader("🎙️ Voice Entry (बोल कर लिखें)")
-    st.caption("Press Record and speak your transaction in your native language:")
-    
-    # 1. Native Streamlit Microphone & Audio Uploader Fallback
+# Input row: Mic and File Uploader side by side
+col_mic, col_file = st.columns([1, 1], gap="medium")
+with col_mic:
     recorded_audio = st.audio_input("Speak transaction (e.g., 'रमेश भाई को 5 किलो चीनी दी 220 की, 100 दिया, 120 बाकी'):")
+with col_file:
     uploaded_audio = st.file_uploader("📁 Or Upload Voice Note / Audio File:", type=["wav", "mp3", "m4a", "ogg"], help="Drop any recorded voice note here")
 
-    # 2. 1-Click Demo Presets (Crucial for 45-min hackathon safety)
-    st.markdown("##### ⚡ Or Pick a 1-Click Test Demo:")
-    demo_presets = {
-        "— Select a preset —": "",
-        "🌾 Hindi (Udhaar): रमेश भाई को 5 किलो आटा दिया 180 रुपये का, 100 नकद मिला, 80 उधार": 
-            "रमेश भाई को 5 किलो आटा दिया 180 रुपये का, 100 नकद मिला, 80 उधार",
-        "🥛 Tamil (Milk & Oil): சுரேஷ் அண்ணாவுக்கு 2 லிட்டர் பால் மற்றும் எண்ணெய் 240 ரூபாய், 200 கொடுத்தார், 40 பாக்கி":
-            "சுரேஷ் அண்ணாவுக்கு 2 லிட்டர் பால் மற்றும் எண்ணெய் 240 ரூபாய், 200 கொடுத்தார், 40 பாக்கி",
-        "🛍️ Hinglish (Tea & Biscuits): Rohit ko 2 packet biscuit aur chai patti di 150 ka, usne pura paisa GPay kar diya":
-            "Rohit ko 2 packet biscuit aur chai patti di 150 ka, usne pura paisa GPay kar diya",
-        "🏪 Marathi (Spices): संतोष काकांना 500 ग्रॅम मसाले दिले 250 रुपयांचे, 150 रोख दिले आणि 100 उधारीवर ठेवले":
-            "संतोष काकांना 500 ग्रॅम मसाले दिले 250 रुपयांचे, 150 रोख दिले और 100 उधारीवर ठेवले"
-    }
-    selected_demo = st.selectbox("Quick Demo Samples", list(demo_presets.keys()))
-    manual_text = st.text_area("Or type/edit transcript manually:", value=demo_presets[selected_demo] if selected_demo else "", height=80)
+# 1-Click Demo Presets row
+st.markdown("##### ⚡ Or Pick a 1-Click Test Demo:")
+demo_presets = {
+    "— Select a preset —": "",
+    "🌾 Hindi (Udhaar): रमेश भाई को 5 किलो आटा दिया 180 रुपये का, 100 नकद मिला, 80 उधार": 
+        "रमेश भाई को 5 किलो आटा दिया 180 रुपये का, 100 नकद मिला, 80 उधार",
+    "🥛 Tamil (Milk & Oil): சுரேஷ் அண்ணாவுக்கு 2 லிட்டர் பால் மற்றும் எண்ணெய் 240 ரூபாய், 200 கொடுத்தார், 40 பாக்கி":
+        "சுரேஷ் அண்ணாவுக்கு 2 லிட்டர் பால் மற்றும் எண்ணெய் 240 ரூபாய், 200 கொடுத்தார், 40 பாக்கி",
+    "🛍️ Hinglish (Tea & Biscuits): Rohit ko 2 packet biscuit aur chai patti di 150 ka, usne pura paisa GPay kar diya":
+        "Rohit ko 2 packet biscuit aur chai patti di 150 ka, usne pura paisa GPay kar diya",
+    "🏪 Marathi (Spices): संतोष काकांना 500 ग्रॅम मसाले दिले 250 रुपयांचे, 150 रोख दिले आणि 100 उधारीवर ठेवले":
+        "संतोष काकांना 500 ग्रॅम मसाले दिले 250 रुपयांचे, 150 रोख दिले और 100 उधारीवर ठेवले"
+}
+selected_demo = st.selectbox("Quick Demo Samples", list(demo_presets.keys()))
+manual_text = st.text_area("Or type/edit transcript manually:", value=demo_presets[selected_demo] if selected_demo else "", height=70)
 
-    process_btn = st.button("🚀 Process & Record Entry", type="primary", use_container_width=True)
+process_btn = st.button("🚀 Process & Record Entry", type="primary", use_container_width=True)
 
-with col_right:
-    st.subheader("📋 Parsed Transaction & Smart Audio")
-
-    if process_btn:
-        if not sarvam_api_key or "your_" in sarvam_api_key.lower():
-            st.error("⚠️ Please configure `SARVAM_API_KEY` in Streamlit Secrets or your local `.env` file.")
-        else:
-            transcript = ""
-            detected_lang = selected_lang_code
-
-            # Handle Voice vs Text
-            audio_source = recorded_audio or uploaded_audio
-            if audio_source is not None:
-                with st.spinner("🎧 Transcribing audio with Sarvam Saaras v2..."):
-                    try:
-                        audio_bytes = audio_source.read()
-                        transcript, detected_lang = sarvam_speech_to_text(audio_bytes, selected_lang_code, sarvam_api_key)
-                        st.info(f"**Saaras Transcript:** {transcript}")
-                    except Exception as e:
-                        st.error(f"STT Error: {str(e)}")
-            elif manual_text.strip():
-                transcript = manual_text.strip()
-            else:
-                st.warning("Please record audio or pick a demo preset first.")
-
-            if transcript:
-                with st.spinner("🤖 Extracting bahi-khata financial entities..."):
-                    data = parse_transaction_with_sarvam(transcript, sarvam_api_key)
-
-                    # Display Extraction Card
-                    c1, c2, c3 = st.columns(3)
-                    c1.markdown(f"**👤 Customer:**\n### {data.get('customer_name')}")
-                    c2.markdown(f"**📦 Items:**\n{data.get('items')}")
-                    
-                    status_badge = "badge-credit" if data.get('due_amount', 0) > 0 else "badge-paid"
-                    c3.markdown(f"**🏷️ Type:** <span class='badge {status_badge}'>{data.get('transaction_type')}</span>", unsafe_allow_html=True)
-
-                    m1, m2, m3 = st.columns(3)
-                    m1.metric("Total Bill", f"₹{data.get('total_amount', 0)}")
-                    m2.metric("Paid (Cash/UPI)", f"₹{data.get('paid_amount', 0)}")
-                    m3.metric("Due (Udhaar)", f"₹{data.get('due_amount', 0)}", delta=f"-₹{data.get('due_amount', 0)}" if data.get('due_amount', 0) > 0 else "Clear")
-
-                    # Add to session ledger
-                    new_entry = {
-                        "Date": datetime.now().strftime("%d-%m-%Y"),
-                        "Time": datetime.now().strftime("%I:%M %p"),
-                        "Customer": data.get("customer_name"),
-                        "Items": data.get("items"),
-                        "Total (Rs)": data.get("total_amount", 0),
-                        "Paid (Rs)": data.get("paid_amount", 0),
-                        "Due (Rs)": data.get("due_amount", 0),
-                        "Status": data.get("transaction_type"),
-                        "Language": selected_lang_name.split()[0]
-                    }
-                    st.session_state.ledger.insert(0, new_entry)
-
-                    # Cloud Sync to Shopkeeper's Google Sheet
-                    synced, sync_msg = sync_to_google_sheet(new_entry)
-                    if synced:
-                        st.success(f"☁️ Synced to Shopkeeper's Google Sheet! ({sync_msg})", icon="📊")
-                    else:
-                        st.info("☁️ Recorded! Directly linked to Shopkeeper's Google Sheet.", icon="📊")
-
-                    # Sarvam Bulbul TTS Voice Feedback
-                    confirmation_speech = data.get("spoken_confirmation", "")
-                    if confirmation_speech:
-                        st.markdown("#### 🔊 Munimji Voice Confirmation (Bulbul v3):")
-                        st.success(f"🗣️ *\"{confirmation_speech}\"*")
-                        with st.spinner("Generating Indic speech audio..."):
-                            try:
-                                audio_out = sarvam_text_to_speech(confirmation_speech, detected_lang, selected_speaker, sarvam_api_key)
-                                if audio_out:
-                                    st.audio(audio_out, format="audio/wav", autoplay=True)
-                            except Exception as e:
-                                st.caption(f"Audio playback note: {str(e)}")
-
-                    # WhatsApp Reminder Generation
-                    reminder = data.get("whatsapp_reminder", "")
-                    if reminder and data.get("due_amount", 0) > 0:
-                        st.markdown("#### 💬 WhatsApp Udhaar Reminder:")
-                        st.code(reminder, language="text")
-                        encoded_reminder = requests.utils.quote(reminder)
-                        st.markdown(f'<a href="https://wa.me/?text={encoded_reminder}" target="_blank" style="text-decoration:none;"><button style="background-color:#25D366;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;">📲 Send via WhatsApp</button></a>', unsafe_allow_html=True)
-
+# ----------------- DYNAMIC TRANSACTION RESULT -----------------
+if process_btn:
+    if not sarvam_api_key or "your_" in sarvam_api_key.lower():
+        st.error("⚠️ Please configure `SARVAM_API_KEY` in Streamlit Secrets or your local `.env` file.")
     else:
-        st.info("👈 Record your voice or select a preset and click **Process & Record Entry** to see Smart-Munim in action!")
+        transcript = ""
+        detected_lang = selected_lang_code
+
+        # Handle Voice vs Text
+        audio_source = recorded_audio or uploaded_audio
+        if audio_source is not None:
+            with st.spinner("🎧 Transcribing audio with Sarvam Saaras v2..."):
+                try:
+                    audio_bytes = audio_source.read()
+                    transcript, detected_lang = sarvam_speech_to_text(audio_bytes, selected_lang_code, sarvam_api_key)
+                    st.info(f"**Saaras Transcript:** {transcript}")
+                except Exception as e:
+                    st.error(f"STT Error: {str(e)}")
+        elif manual_text.strip():
+            transcript = manual_text.strip()
+        else:
+            st.warning("Please record audio, upload a file, or pick a demo preset first.")
+
+        if transcript:
+            with st.spinner("🤖 Extracting bahi-khata financial entities..."):
+                data = parse_transaction_with_sarvam(transcript, sarvam_api_key)
+
+                st.markdown("---")
+                st.success("✅ **Transaction Recorded Successfully!**")
+
+                # Display Extraction Card
+                c1, c2, c3 = st.columns(3)
+                c1.markdown(f"**👤 Customer:**\n### {data.get('customer_name')}")
+                c2.markdown(f"**📦 Items:**\n{data.get('items')}")
+                
+                status_badge = "badge-credit" if data.get('due_amount', 0) > 0 else "badge-paid"
+                c3.markdown(f"**🏷️ Type:** <span class='badge {status_badge}'>{data.get('transaction_type')}</span>", unsafe_allow_html=True)
+
+                m1, m2, m3 = st.columns(3)
+                m1.metric("Total Bill", f"₹{data.get('total_amount', 0)}")
+                m2.metric("Paid (Cash/UPI)", f"₹{data.get('paid_amount', 0)}")
+                m3.metric("Due (Udhaar)", f"₹{data.get('due_amount', 0)}", delta=f"-₹{data.get('due_amount', 0)}" if data.get('due_amount', 0) > 0 else "Clear")
+
+                # Add to session ledger
+                new_entry = {
+                    "Date": datetime.now().strftime("%d-%m-%Y"),
+                    "Time": datetime.now().strftime("%I:%M %p"),
+                    "Customer": data.get("customer_name"),
+                    "Items": data.get("items"),
+                    "Total (Rs)": data.get("total_amount", 0),
+                    "Paid (Rs)": data.get("paid_amount", 0),
+                    "Due (Rs)": data.get("due_amount", 0),
+                    "Status": data.get("transaction_type"),
+                    "Language": selected_lang_name.split()[0]
+                }
+                st.session_state.ledger.insert(0, new_entry)
+
+                # Cloud Sync to Shopkeeper's Google Sheet
+                synced, sync_msg = sync_to_google_sheet(new_entry)
+                if synced:
+                    st.success(f"☁️ Synced to Shopkeeper's Google Sheet! ({sync_msg})", icon="📊")
+                else:
+                    st.info("☁️ Recorded! Directly linked to Shopkeeper's Google Sheet.", icon="📊")
+
+                # Sarvam Bulbul TTS Voice Feedback
+                confirmation_speech = data.get("spoken_confirmation", "")
+                if confirmation_speech:
+                    st.markdown("#### 🔊 Munimji Voice Confirmation (Bulbul v3):")
+                    st.success(f"🗣️ *\"{confirmation_speech}\"*")
+                    with st.spinner("Generating Indic speech audio..."):
+                        try:
+                            audio_out = sarvam_text_to_speech(confirmation_speech, detected_lang, selected_speaker, sarvam_api_key)
+                            if audio_out:
+                                st.audio(audio_out, format="audio/wav", autoplay=True)
+                        except Exception as e:
+                            st.caption(f"Audio playback note: {str(e)}")
+
+                # WhatsApp Reminder Generation
+                reminder = data.get("whatsapp_reminder", "")
+                if reminder and data.get("due_amount", 0) > 0:
+                    st.markdown("#### 💬 WhatsApp Udhaar Reminder:")
+                    st.code(reminder, language="text")
+                    encoded_reminder = requests.utils.quote(reminder)
+                    st.markdown(f'<a href="https://wa.me/?text={encoded_reminder}" target="_blank" style="text-decoration:none;"><button style="background-color:#25D366;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;">📲 Send via WhatsApp</button></a>', unsafe_allow_html=True)
 
 # ----------------- LIVE LEDGER TABLE -----------------
 st.markdown("---")
