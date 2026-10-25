@@ -76,22 +76,20 @@ if "ledger" not in st.session_state:
         }
     ]
 
+# Securely retrieve API Key from Streamlit Secrets or Environment
+secret_key = st.secrets.get("SARVAM_API_KEY", "") if hasattr(st, "secrets") else ""
+env_key = os.getenv("SARVAM_API_KEY", "")
+sarvam_api_key = secret_key or env_key
+
 # ----------------- SIDEBAR CONFIG -----------------
 with st.sidebar:
     st.image("https://img.icons8.com/color/96/shop.png", width=64)
     st.title("⚙️ Munim Settings")
     
-    # Priority: Secrets > Environment Variable > Sidebar Input
-    env_key = os.getenv("SARVAM_API_KEY", "")
-    secret_key = st.secrets.get("SARVAM_API_KEY", "") if hasattr(st, "secrets") else ""
-    default_key = secret_key or env_key
-
-    sarvam_api_key = st.text_input(
-        "Sarvam AI Subscription Key",
-        value=default_key,
-        type="password",
-        help="Paste your api-subscription-key from dashboard.sarvam.ai"
-    )
+    if sarvam_api_key:
+        st.success("API Connected", icon="✅")
+    else:
+        st.warning("Add SARVAM_API_KEY in Secrets", icon="⚠️")
 
     st.markdown("---")
     st.subheader("🗣️ Voice Configuration")
@@ -283,7 +281,7 @@ with col_right:
 
     if process_btn:
         if not sarvam_api_key or "your_" in sarvam_api_key.lower():
-            st.error("⚠️ Please add your valid Sarvam API Subscription Key in the sidebar or `.env` file.")
+            st.error("⚠️ Please configure `SARVAM_API_KEY` in Streamlit Secrets or your local `.env` file.")
         else:
             transcript = ""
             detected_lang = selected_lang_code
