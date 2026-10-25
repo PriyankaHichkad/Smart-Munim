@@ -321,8 +321,9 @@ with col_left:
     st.subheader("🎙️ Voice Entry (बोल कर लिखें)")
     st.caption("Press Record and speak your transaction in your native language:")
     
-    # 1. Native Streamlit Microphone
+    # 1. Native Streamlit Microphone & Audio Uploader Fallback
     recorded_audio = st.audio_input("Speak transaction (e.g., 'रमेश भाई को 5 किलो चीनी दी 220 की, 100 दिया, 120 बाकी'):")
+    uploaded_audio = st.file_uploader("📁 Or Upload Voice Note / Audio File:", type=["wav", "mp3", "m4a", "ogg"], help="Drop any recorded voice note here")
 
     # 2. 1-Click Demo Presets (Crucial for 45-min hackathon safety)
     st.markdown("##### ⚡ Or Pick a 1-Click Test Demo:")
@@ -335,7 +336,7 @@ with col_left:
         "🛍️ Hinglish (Tea & Biscuits): Rohit ko 2 packet biscuit aur chai patti di 150 ka, usne pura paisa GPay kar diya":
             "Rohit ko 2 packet biscuit aur chai patti di 150 ka, usne pura paisa GPay kar diya",
         "🏪 Marathi (Spices): संतोष काकांना 500 ग्रॅम मसाले दिले 250 रुपयांचे, 150 रोख दिले आणि 100 उधारीवर ठेवले":
-            "संतोष काकांना 500 ग्रॅम मसाले दिले 250 रुपयांचे, 150 रोख दिले आणि 100 उधारीवर ठेवले"
+            "संतोष काकांना 500 ग्रॅम मसाले दिले 250 रुपयांचे, 150 रोख दिले और 100 उधारीवर ठेवले"
     }
     selected_demo = st.selectbox("Quick Demo Samples", list(demo_presets.keys()))
     manual_text = st.text_area("Or type/edit transcript manually:", value=demo_presets[selected_demo] if selected_demo else "", height=80)
@@ -353,10 +354,11 @@ with col_right:
             detected_lang = selected_lang_code
 
             # Handle Voice vs Text
-            if recorded_audio is not None:
+            audio_source = recorded_audio or uploaded_audio
+            if audio_source is not None:
                 with st.spinner("🎧 Transcribing audio with Sarvam Saaras v2..."):
                     try:
-                        audio_bytes = recorded_audio.read()
+                        audio_bytes = audio_source.read()
                         transcript, detected_lang = sarvam_speech_to_text(audio_bytes, selected_lang_code, sarvam_api_key)
                         st.info(f"**Saaras Transcript:** {transcript}")
                     except Exception as e:
