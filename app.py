@@ -316,14 +316,9 @@ st.markdown("---")
 
 # ----------------- VOICE & TRANSACTION ENTRY -----------------
 st.subheader("🎙️ Voice Entry (बोल कर लिखें)")
-st.caption("Speak your transaction, upload an audio clip, or pick a sample preset:")
+st.caption("Press Record and speak your transaction in your native language:")
 
-# Input row: Mic and File Uploader side by side
-col_mic, col_file = st.columns([1, 1], gap="medium")
-with col_mic:
-    recorded_audio = st.audio_input("Speak transaction (e.g., 'रमेश भाई को 5 किलो चीनी दी 220 की, 100 दिया, 120 बाकी'):")
-with col_file:
-    uploaded_audio = st.file_uploader("📁 Or Upload Voice Note / Audio File:", type=["wav", "mp3", "m4a", "ogg"], help="Drop any recorded voice note here")
+recorded_audio = st.audio_input("Speak transaction (e.g., 'रमेश भाई को 5 किलो चीनी दी 220 की, 100 दिया, 120 बाकी'):")
 
 # 1-Click Demo Presets row
 st.markdown("##### ⚡ Or Pick a 1-Click Test Demo:")
@@ -352,11 +347,10 @@ if process_btn:
         detected_lang = selected_lang_code
 
         # Handle Voice vs Text
-        audio_source = recorded_audio or uploaded_audio
-        if audio_source is not None:
+        if recorded_audio is not None:
             with st.spinner("🎧 Transcribing audio with Sarvam Saaras v2..."):
                 try:
-                    audio_bytes = audio_source.read()
+                    audio_bytes = recorded_audio.read()
                     transcript, detected_lang = sarvam_speech_to_text(audio_bytes, selected_lang_code, sarvam_api_key)
                     st.info(f"**Saaras Transcript:** {transcript}")
                 except Exception as e:
@@ -364,7 +358,7 @@ if process_btn:
         elif manual_text.strip():
             transcript = manual_text.strip()
         else:
-            st.warning("Please record audio, upload a file, or pick a demo preset first.")
+            st.warning("Please record audio or pick a demo preset first.")
 
         if transcript:
             with st.spinner("🤖 Extracting bahi-khata financial entities..."):
