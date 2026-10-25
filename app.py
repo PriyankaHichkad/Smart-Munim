@@ -299,6 +299,19 @@ kpi2.metric("💵 Cash In Hand", f"₹{total_cash}")
 kpi3.metric("⏳ Total Udhaar Due", f"₹{total_udhaar}", delta=f"-₹{total_udhaar}", delta_color="inverse")
 kpi4.metric("👥 Total Customers", f"{len(st.session_state.ledger)}")
 
+# 🌟 Unique Feature: Daily Audio Briefing (मुनीमजी हिसाब सुनाओ)
+if st.button("📢 🎙️ Munimji, Aaj Ka Hisaab Sunao (Daily Voice Briefing)", use_container_width=True):
+    if sarvam_api_key:
+        briefing_text = f"आज दुकान पर कुल {total_sales} रुपये की बिक्री हुई है, {total_cash} रुपये नकद मिले हैं, और कुल {total_udhaar} रुपये की उधारी बाकी है।"
+        with st.spinner("🔊 Munimji preparing spoken briefing..."):
+            try:
+                audio_briefing = sarvam_text_to_speech(briefing_text, selected_lang_code, selected_speaker, sarvam_api_key)
+                if audio_briefing:
+                    st.audio(audio_briefing, format="audio/wav", autoplay=True)
+                    st.success(f"🗣️ *\"{briefing_text}\"*")
+            except Exception as e:
+                st.caption(f"Audio note: {str(e)}")
+
 st.markdown("---")
 
 # Two-column layout: Input (Voice/Text) vs Output/Ledger
